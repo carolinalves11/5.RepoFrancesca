@@ -1,0 +1,17 @@
+# Input and Output directories
+1.Inputs/
+2.Outputs/
+
+# Work in progress files
+
+# Large medical imaging files
+*.nii
+*.nii.gz
+
+# Virtual environment
+.vnv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

@@ -11,3 +11,7 @@ networkx
 skan
 totalsegmentator
 medpy
+
+# source vnv/bin/activate
+# pip uninstall torch torchvision -y
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
