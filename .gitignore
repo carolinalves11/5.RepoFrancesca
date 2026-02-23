@@ -9,9 +9,9 @@
 *.nii.gz
 
 # Virtual environment
-.vnv/
+vnv/
 
 # Python cache
-__pycache__/
+airway_segmentation/__pycache__/
 *.pyc
 *.pyo
