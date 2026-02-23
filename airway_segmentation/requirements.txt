@@ -1,0 +1,13 @@
+# RUN THIS COMMAND:
+# pip install -r requirements.txt
+
+numpy
+scipy
+SimpleITK
+scikit-image
+pandas
+matplotlib
+networkx
+skan
+totalsegmentator
+medpy
