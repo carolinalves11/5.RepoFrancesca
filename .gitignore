@@ -12,6 +12,8 @@
 vnv/
 
 # Python cache
-airway_segmentation/__pycache__/
+airway_segmentation/__pycache__
+airway_segmentation/__pycache__/*.pyc
+airway_segmentation/__pycache__/*.pyo
 *.pyc
 *.pyo
