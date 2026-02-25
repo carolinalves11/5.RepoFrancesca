@@ -99,6 +99,25 @@ class CompleteAirwayPipeline:
             fast_segmentation: Use fast mode for TotalSegmentator
             device: "gpu" or "cpu" for TotalSegmentator (default: "gpu")
         """
+        
+        # Check GPU compatibility if GPU requested
+        if device == "gpu":
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    capability = torch.cuda.get_device_capability(0)
+                    gpu_name = torch.cuda.get_device_name(0)
+                    # Actually test CUDA execution instead of guessing from capability number
+                    test_tensor = torch.zeros(1, device='cuda')
+                    del test_tensor
+                    print(f"\n✓ GPU verified: {gpu_name} (sm_{capability[0]}{capability[1]})")
+                else:
+                    print(f"\n  CUDA not available, switching to CPU")
+                    device = "cpu"
+            except Exception as e:
+                print(f"\n  GPU test failed: {e}")
+                print(f"   Switching to CPU mode...")
+                device = "cpu"
 
         if scan_name is None:
             if os.path.isdir(mhd_path):
@@ -346,7 +365,7 @@ class CompleteAirwayPipeline:
                     step5_dir,
                     fast_segmentation=fast_segmentation,
                     verbose=True,
-                    device=device
+                    device=device  # Use the working device (may have been switched to CPU)
                 )
 
                 results['parenchymal_metrics'] = parenchymal_metrics
@@ -470,7 +489,8 @@ class CompleteAirwayPipeline:
 
             f.write(f"Scan name: {results['scan_name']}\n")
             f.write(f"Input file: {results['input_path']}\n")
-            f.write(f"Analysis date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(f"Analysis date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("\n")
 
             f.write("="*80 + "\n")
             f.write("PIPELINE STEPS\n")
@@ -854,7 +874,7 @@ python main_pipeline.py \
 python main_pipeline.py \
     --input "/media/carolinalves11/Disk1TB/1.Dados/OSICS/test/ID00419637202311204720264" \
     --output /media/carolinalves11/Disk1TB/5.RepoFrancesca/output \
-    --fast
+    --gpu
 
 # Batch processing MHD files:
 python main_pipeline.py \
@@ -863,11 +883,16 @@ python main_pipeline.py \
     --fast
 
 # Batch processing DICOM directories:
+# HSJ Seleceted (DICOM folders):
 python airway_segmentation/main_pipeline.py \
-    --input /media/carolinalves11/Disk1TB/1.Dados/OSICS/test \
-    --output /media/carolinalves11/Disk1TB/5.RepoFrancesca/2.Outputs/test \
+    --input /media/carolinalves11/Disk1TB/1.Dados/HSJ_selected \
+    --output /media/carolinalves11/Disk1TB/5.RepoFrancesca/2.Outputs/HSJ_selected \
     --gpu 
 
-# Run with CPU (default if --gpu not specified)
-python main_pipeline.py --input /path/to/scan --output /path/to/output --fast
+# OSICS Seleceted (DICOM folders):
+python airway_segmentation/main_pipeline.py \
+    --input /media/carolinalves11/Disk1TB/1.Dados/OSICS_selected \
+    --output /media/carolinalves11/Disk1TB/5.RepoFrancesca/2.Outputs/OSICS_selected \
+    --gpu 
+
 """
