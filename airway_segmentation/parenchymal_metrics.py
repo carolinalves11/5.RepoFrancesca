@@ -47,6 +47,38 @@ def segment_lungs_totalsegmentator(ct_path, output_dir, fast=True, device="gpu")
         device=device
     )
 
+    # save lung masks of each lobe with its tag, in a single nifty file (10-LUL, 11-LLL, 12-LUR, 13-LML, 14-LLR)
+    tag_map = {
+        "lung_upper_lobe_left": 10,
+        "lung_lower_lobe_left": 11,
+        "lung_upper_lobe_right": 12,
+        "lung_middle_lobe_right": 13,
+        "lung_lower_lobe_right": 14
+    }
+
+    combined_mask = np.zeros_like(sitk.GetArrayFromImage(ct_image), dtype=np.uint8)
+    lung_mask = np.zeros_like(combined_mask, dtype=np.uint8)
+    found_any_lobe = False
+
+    for part_name, tag in tag_map.items():
+        part_path = output_dir / f"{part_name}.nii.gz"
+        if part_path.exists():
+            part_image = sitk.ReadImage(str(part_path))
+            part_array = sitk.GetArrayFromImage(part_image)
+            lobe_voxels = part_array > 0
+            combined_mask[lobe_voxels] = tag
+            lung_mask[lobe_voxels] = 1
+            found_any_lobe = True
+
+    if not found_any_lobe:
+        raise RuntimeError("TotalSegmentator did not generate lung lobe masks")
+
+    combined_mask_image = sitk.GetImageFromArray(combined_mask)
+    combined_mask_image.CopyInformation(ct_image)
+    sitk.WriteImage(combined_mask_image, str(output_dir / "total_segmentator_0000.nii.gz"))
+
+
+    # then, combine them
     lung_parts = [
         "lung_upper_lobe_left.nii.gz",
         "lung_lower_lobe_left.nii.gz",
@@ -77,7 +109,9 @@ def segment_lungs_totalsegmentator(ct_path, output_dir, fast=True, device="gpu")
 
     nifti_path.unlink(missing_ok=True)
 
-    return lung_mask
+
+
+    return lung_mask, combined_mask
 
 
 
@@ -244,7 +278,12 @@ def integrate_parenchymal_metrics(mhd_path, output_dir, fast_segmentation=True, 
         segmentation_dir = output_dir / "segmentation_temp"
         segmentation_dir.mkdir(parents=True, exist_ok=True)
 
-        lung_mask = segment_lungs_totalsegmentator(ct_image, segmentation_dir, fast=fast_segmentation, device=device)
+        lung_mask, lobe_multilabel_mask = segment_lungs_totalsegmentator(
+            ct_image,
+            segmentation_dir,
+            fast=fast_segmentation,
+            device=device
+        )
 
         if verbose:
             print(f"\nComputing parenchymal metrics...")
@@ -265,8 +304,14 @@ def integrate_parenchymal_metrics(mhd_path, output_dir, fast_segmentation=True, 
         mask_sitk.CopyInformation(ct_image)
         sitk.WriteImage(mask_sitk, str(mask_path))
 
+        lobe_mask_path = output_dir / "lung_lobes_multilabel_0000.nii.gz"
+        lobe_mask_sitk = sitk.GetImageFromArray(lobe_multilabel_mask.astype(np.uint8))
+        lobe_mask_sitk.CopyInformation(ct_image)
+        sitk.WriteImage(lobe_mask_sitk, str(lobe_mask_path))
+
         if verbose:
             print(f"✓ Lung mask saved to: {mask_path}")
+            print(f"✓ Lobe multilabel mask saved to: {lobe_mask_path}")
 
         report_path = output_dir / "parenchymal_report.txt"
         with open(report_path, 'w', encoding='utf-8') as f:
@@ -289,6 +334,12 @@ def integrate_parenchymal_metrics(mhd_path, output_dir, fast_segmentation=True, 
             f.write("-"*80 + "\n")
             f.write("  • Higher Mean Density = Denser lung tissue (fibrosis)\n")
             f.write("  • Higher Entropy = More heterogeneous tissue patterns\n\n")
+
+            f.write("OUTPUT MASKS:\n")
+            f.write("-"*80 + "\n")
+            f.write(f"  • Binary lung mask: {mask_path}\n")
+            f.write(f"  • Lobe multilabel mask: {lobe_mask_path}\n")
+            f.write("    Label map: 10=LUL, 11=LLL, 12=RUL, 13=RML, 14=RLL\n\n")
 
             f.write("="*80 + "\n")
 
